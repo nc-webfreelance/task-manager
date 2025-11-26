@@ -58,14 +58,17 @@
     .search-input { width: 100%; padding: 0.75rem 1rem; border: 1px solid #ffe4c4; border-radius: 0.5rem; font-size: 1rem; margin-bottom: 1rem; }
     .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
     .view-mode-buttons { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
-    .calendar { background: white; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .calendar-content { min-width: 800px; }
+    .calendar { background: white; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
+    .calendar-content { min-width: 800px; display: flex; flex-direction: column; height: 100%; }
+    .calendar-fixed-header { flex-shrink: 0; background: white; position: sticky; top: 0; z-index: 10; }
+    .calendar-dates-scroll { flex: 1; overflow-y: auto; }
     .calendar-header { padding: 1rem; border-bottom: 1px solid #ffe4c4; display: flex; justify-content: space-between; align-items: center; }
     .calendar-nav { padding: 0.5rem; border: none; background: none; cursor: pointer; border-radius: 0.5rem; transition: background 0.2s; font-size: 1.5rem; color: #ed8936; }
     .calendar-nav:hover { background: #fffaf0; }
     .calendar-title { font-size: 1.25rem; font-weight: bold; color: #4a4a4a; }
     .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0; }
-    .calendar-day-header { padding: 0.5rem; text-align: center; font-size: 0.875rem; font-weight: 500; color: #9ca3af; border-bottom: 1px solid #ffe4c4; }
+    .calendar-weekday-header { border-bottom: 1px solid #ffe4c4; }
+    .calendar-day-header { padding: 0.5rem; text-align: center; font-size: 0.875rem; font-weight: 500; color: #9ca3af; background: white; }
     .calendar-cell { min-height: 120px; padding: 0.5rem; border: 1px solid #ffe4c4; cursor: pointer; transition: background 0.2s; background: white; overflow: hidden; }
     .calendar-cell:hover { background: #fffaf0; }
     .calendar-cell.other-month { background: #faf9f7; color: #b8b0a8; }
@@ -77,6 +80,7 @@
     .empty-state { text-align: center; padding: 3rem; color: #b8b0a8; }
     .required { color: #d97171; }
     .drop-indicator { height: 3px; background: #ed8936; margin: 0; transition: all 0.2s; box-shadow: 0 0 10px rgba(237, 137, 54, 0.6); border-radius: 2px; }
+    .date-label { display: none; }
     
     /* Responsive styles */
     @media (max-width: 768px) {
@@ -101,6 +105,9 @@
     
     @media (max-width: 900px) {
       .task-list-header { display: none !important; }
+      
+      /* タスクの日付ラベルを表示 */
+      .date-label { display: inline; }
       
       .task-item { 
         display: flex !important;
@@ -134,6 +141,10 @@
         width: 100%;
         padding-left: 2rem;
       }
+      
+      /* 予約：スマホではカード表示、PCではテーブル表示 */
+      .mobile-reservations { display: block !important; }
+      .desktop-reservations { display: none !important; }
     }
     
     @media (max-width: 640px) {
@@ -145,11 +156,41 @@
       .calendar-nav { font-size: 1.25rem; padding: 0.25rem; }
       .calendar-title { font-size: 1rem; }
       
+      /* カレンダー横スクロール時に年月・曜日を固定 */
+      .calendar {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        max-height: calc(100vh - 200px);
+      }
+      
+      .calendar-fixed-header {
+        position: sticky;
+        left: 0;
+        top: 0;
+        z-index: 10;
+        background: white;
+      }
+      
       .modal { 
         max-width: 100%; 
-        border-radius: 0.5rem; 
-        max-height: 95vh;
-        margin: 0.5rem;
+        border-radius: 0; 
+        max-height: 100vh;
+        height: 100%;
+        margin: 0;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+      }
+      
+      .modal-overlay {
+        padding: 0 !important;
+      }
+      
+      .modal-content {
+        padding: 1rem !important;
+        padding-bottom: 2rem !important;
       }
       
       .search-input {
@@ -693,27 +734,27 @@
           <div className="task-date-col" style={{fontSize: '0.85rem', lineHeight: '1.4'}}>
             {task.isWorkDateUndecided ? (
               <div>
-                未定
-                {task.workDateMemo && <div style={{fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.2rem'}}>{task.workDateMemo}</div>}
+                <span className="date-label">🗓 作業: </span>未定
+                {task.workDateMemo && <span style={{fontSize: '0.75rem', color: '#9ca3af', marginLeft: '0.25rem'}}>({task.workDateMemo})</span>}
               </div>
             ) : task.workDate ? (
               <div>
-                {formatDateWithWeekday(task.workDate)}
-                {task.workDateMemo && <div style={{fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.2rem'}}>{task.workDateMemo}</div>}
+                <span className="date-label">🗓 作業: </span>{formatDateWithWeekday(task.workDate)}
+                {task.workDateMemo && <span style={{fontSize: '0.75rem', color: '#9ca3af', marginLeft: '0.25rem'}}>({task.workDateMemo})</span>}
               </div>
             ) : task.workDateMemo ? (
-              <div style={{fontSize: '0.75rem', color: '#9ca3af'}}>{task.workDateMemo}</div>
+              <div><span className="date-label">🗓 作業: </span><span style={{fontSize: '0.75rem', color: '#9ca3af'}}>{task.workDateMemo}</span></div>
             ) : null}
           </div>
           
           <div className="task-date-col" style={{fontSize: '0.85rem', lineHeight: '1.4', color: '#dc2626'}}>
             {task.dueDate ? (
               <div>
-                {formatDateWithWeekday(task.dueDate)}
-                {task.dueDateMemo && <div style={{fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.2rem'}}>{task.dueDateMemo}</div>}
+                <span className="date-label">⏰ 締切: </span>{formatDateWithWeekday(task.dueDate)}
+                {task.dueDateMemo && <span style={{fontSize: '0.75rem', color: '#9ca3af', marginLeft: '0.25rem'}}>({task.dueDateMemo})</span>}
               </div>
             ) : task.dueDateMemo ? (
-              <div style={{fontSize: '0.75rem', color: '#9ca3af'}}>{task.dueDateMemo}</div>
+              <div><span className="date-label">⏰ 締切: </span><span style={{fontSize: '0.75rem', color: '#9ca3af'}}>{task.dueDateMemo}</span></div>
             ) : null}
           </div>
           
@@ -1413,95 +1454,103 @@
       return (
         <div className="calendar">
           <div className="calendar-content">
-            <div className="calendar-header">
-              <button className="calendar-nav" onClick={() => setCurrentDate(new Date(year, month - 1, 1))}>←</button>
-              <h2 
-                className="calendar-title" 
-                onClick={() => setShowYearMonthPicker(!showYearMonthPicker)}
-                style={{ cursor: 'pointer', userSelect: 'none' }}
-                title="クリックして年月を選択"
-              >
-                {year}年 {month + 1}月 <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>▼</span>
-              </h2>
-              <button className="calendar-nav" onClick={() => setCurrentDate(new Date(year, month + 1, 1))}>→</button>
-            </div>
-            
-            {/* 年月ピッカー */}
-            {showYearMonthPicker && (
-              <div style={{
-                display: 'flex',
-                justifyContent: 'center',
-                gap: '1rem',
-                padding: '1rem',
-                background: '#fff9f5',
-                borderRadius: '0.5rem',
-                marginBottom: '1rem'
-              }}>
-                <select
-                  value={year}
-                  onChange={(e) => {
-                    setCurrentDate(new Date(parseInt(e.target.value), month, 1));
-                  }}
-                  className="form-select"
-                  style={{ width: 'auto', padding: '0.5rem' }}
+            {/* 固定ヘッダー部分 */}
+            <div className="calendar-fixed-header">
+              <div className="calendar-header">
+                <button className="calendar-nav" onClick={() => setCurrentDate(new Date(year, month - 1, 1))}>←</button>
+                <h2 
+                  className="calendar-title" 
+                  onClick={() => setShowYearMonthPicker(!showYearMonthPicker)}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                  title="クリックして年月を選択"
                 >
-                  {years.map(y => <option key={y} value={y}>{y}年</option>)}
-                </select>
-                <select
-                  value={month + 1}
-                  onChange={(e) => {
-                    setCurrentDate(new Date(year, parseInt(e.target.value) - 1, 1));
-                  }}
-                  className="form-select"
-                  style={{ width: 'auto', padding: '0.5rem' }}
-                >
-                  {months.map(m => <option key={m} value={m}>{m}月</option>)}
-                </select>
-                <button
-                  className="btn-secondary"
-                  onClick={() => {
-                    setCurrentDate(new Date());
-                    setShowYearMonthPicker(false);
-                  }}
-                  style={{ padding: '0.5rem 1rem' }}
-                >
-                  今月
-                </button>
-                <button
-                  className="btn-secondary"
-                  onClick={() => setShowYearMonthPicker(false)}
-                  style={{ padding: '0.5rem 1rem' }}
-                >
-                  閉じる
-                </button>
+                  {year}年 {month + 1}月 <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>▼</span>
+                </h2>
+                <button className="calendar-nav" onClick={() => setCurrentDate(new Date(year, month + 1, 1))}>→</button>
               </div>
-            )}
-            
-            <div className="calendar-grid">
-              {['月', '火', '水', '木', '金', '土', '日'].map((day, index) => (
-                <div 
-                  key={day} 
-                  className="calendar-day-header"
-                  style={{
-                    color: index === 5 ? '#2563eb' : index === 6 ? '#dc2626' : undefined
-                  }}
-                >
-                  {day}
+              
+              {/* 年月ピッカー */}
+              {showYearMonthPicker && (
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  gap: '1rem',
+                  padding: '1rem',
+                  background: '#fff9f5',
+                  borderRadius: '0.5rem',
+                  marginBottom: '1rem'
+                }}>
+                  <select
+                    value={year}
+                    onChange={(e) => {
+                      setCurrentDate(new Date(parseInt(e.target.value), month, 1));
+                    }}
+                    className="form-select"
+                    style={{ width: 'auto', padding: '0.5rem' }}
+                  >
+                    {years.map(y => <option key={y} value={y}>{y}年</option>)}
+                  </select>
+                  <select
+                    value={month + 1}
+                    onChange={(e) => {
+                      setCurrentDate(new Date(year, parseInt(e.target.value) - 1, 1));
+                    }}
+                    className="form-select"
+                    style={{ width: 'auto', padding: '0.5rem' }}
+                  >
+                    {months.map(m => <option key={m} value={m}>{m}月</option>)}
+                  </select>
+                  <button
+                    className="btn-secondary"
+                    onClick={() => {
+                      setCurrentDate(new Date());
+                      setShowYearMonthPicker(false);
+                    }}
+                    style={{ padding: '0.5rem 1rem' }}
+                  >
+                    今月
+                  </button>
+                  <button
+                    className="btn-secondary"
+                    onClick={() => setShowYearMonthPicker(false)}
+                    style={{ padding: '0.5rem 1rem' }}
+                  >
+                    閉じる
+                  </button>
                 </div>
-              ))}
+              )}
+              
+              {/* 曜日ヘッダー */}
+              <div className="calendar-grid calendar-weekday-header">
+                {['月', '火', '水', '木', '金', '土', '日'].map((day, index) => (
+                  <div 
+                    key={day} 
+                    className="calendar-day-header"
+                    style={{
+                      color: index === 5 ? '#2563eb' : index === 6 ? '#dc2626' : undefined
+                    }}
+                  >
+                    {day}
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="calendar-grid">
-              {calendarDays.map((date, index) => (
-                <CalendarCell
-                  key={index}
-                  date={date}
-                  tasks={tasks}
-                  viewMode={viewMode}
-                  isCurrentMonth={date.getMonth() === month}
-                  onClick={() => handleDateClick(date)}
-                  dateMemos={dateMemos}
-                />
-              ))}
+            
+            {/* スクロール可能な日付部分 */}
+            <div className="calendar-dates-scroll">
+              <div className="calendar-grid">
+                {calendarDays.map((date, index) => (
+                  <CalendarCell
+                    key={index}
+                    date={date}
+                    tasks={tasks}
+                    viewMode={viewMode}
+                    isCurrentMonth={date.getMonth() === month}
+                    onClick={() => handleDateClick(date)}
+                    dateMemos={dateMemos}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -2128,7 +2177,95 @@
             {sortedReservations.length === 0 ? (
               <div className="empty-state">予約がありません</div>
             ) : (
-              <div style={{ overflowX: 'auto' }}>
+              <>
+                {/* モバイル用カード表示 */}
+                <div className="mobile-reservations" style={{ display: 'none' }}>
+                  {sortedReservations.map(reservation => (
+                    <div 
+                      key={reservation.id}
+                      style={{
+                        background: (reservation.status === '実施済み' || reservation.status === 'キャンセル') ? '#fafafa' : 'white',
+                        border: '1px solid #ffe4c4',
+                        borderRadius: '0.5rem',
+                        padding: '1rem',
+                        marginBottom: '0.75rem'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                        <select
+                          value={reservation.status}
+                          onChange={async (e) => {
+                            const updatedReservation = { ...reservation, status: e.target.value };
+                            const updatedReservations = reservations.map(r => 
+                              r.id === reservation.id ? updatedReservation : r
+                            );
+                            setReservations(updatedReservations);
+                            localStorage.setItem('reservations', JSON.stringify(updatedReservations));
+                            await api.post('update', 'reservations', updatedReservation);
+                          }}
+                          style={{ 
+                            ...getStatusStyle(reservation.status),
+                            padding: '0.25rem 0.5rem', 
+                            borderRadius: '0.25rem', 
+                            fontSize: '0.75rem',
+                            fontWeight: 500,
+                            border: 'none',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {statusOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                        </select>
+                        <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                          {reservation.date ? reservation.date.replace(/-/g, '/').slice(5) : ''}
+                          {reservation.date && (() => {
+                            const d = new Date(reservation.date + 'T00:00:00');
+                            const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+                            return ` (${weekdays[d.getDay()]})`;
+                          })()}
+                        </span>
+                      </div>
+                      
+                      <div style={{ fontWeight: 600, fontSize: '1rem', marginBottom: '0.5rem' }}>
+                        {reservation.content}
+                      </div>
+                      
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', fontSize: '0.8rem', color: '#6b7280', marginBottom: '0.75rem' }}>
+                        {reservation.booth && <div>📍 {reservation.booth}</div>}
+                        {reservation.reservationTime && (
+                          <div>🕐 予約: {reservation.reservationTime}{reservation.duration && ` (${reservation.duration})`}</div>
+                        )}
+                        {reservation.actualTime && (
+                          <div>✅ 実施: {reservation.actualTime}{reservation.actualDuration && ` (${reservation.actualDuration})`}</div>
+                        )}
+                      </div>
+                      
+                      {reservation.remarks && (
+                        <div style={{ fontSize: '0.8rem', color: '#9ca3af', marginBottom: '0.75rem' }}>
+                          💬 {reservation.remarks}
+                        </div>
+                      )}
+                      
+                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                        <button 
+                          onClick={() => handleEdit(reservation)}
+                          className="btn-secondary"
+                          style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem' }}
+                        >
+                          編集
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(reservation.id)}
+                          style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem', color: '#9ca3af', background: 'transparent', border: '1px solid #e5e7eb', borderRadius: '0.25rem', cursor: 'pointer' }}
+                        >
+                          削除
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* PC用テーブル表示 */}
+                <div className="desktop-reservations" style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem', minWidth: '900px' }}>
                   <thead>
                     <tr style={{ background: '#f9fafb', borderBottom: '2px solid #ffe4c4' }}>
@@ -2221,7 +2358,8 @@
                     ))}
                   </tbody>
                 </table>
-              </div>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -2844,10 +2982,40 @@
                 <div className="title">タスク管理</div>
                 <div style={{ display: 'flex', gap: '0.5rem', marginRight: '1.5rem' }}>
                   <a
+                    href="https://discord.com/channels/1433127905138966671/1433127906107724038"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Discord チャットを開く"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '50%',
+                      background: 'white',
+                      border: '2px solid #ffe4c4',
+                      color: '#ed8936',
+                      textDecoration: 'none',
+                      fontSize: '1.25rem',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.background = '#fff4e6';
+                      e.currentTarget.style.borderColor = '#ed8936';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.background = 'white';
+                      e.currentTarget.style.borderColor = '#ffe4c4';
+                    }}
+                  >
+                    💬
+                  </a>
+                  <a
                     href="https://discord.com/channels/1433127905138966671/1433133343318347866"
                     target="_blank"
                     rel="noopener noreferrer"
-                    title="Discordを開く"
+                    title="Discord 資料を開く"
                     style={{
                       display: 'flex',
                       alignItems: 'center',
