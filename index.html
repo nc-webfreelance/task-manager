@@ -785,7 +785,7 @@
           {/* PC用: 備考 */}
           <div className="task-actions-col task-pc-only" style={{minWidth: 0}}>
             {(task.remarks || task.memo) && (
-              <div style={{fontSize: '0.8rem', color: '#9ca3af', whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: '1.4'}}>
+              <div style={{fontSize: '0.8rem', color: '#6b7280', whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: '1.4'}}>
                 {task.remarks || task.memo}
               </div>
             )}
@@ -2389,8 +2389,17 @@
                       </div>
                       
                       {reservation.remarks && (
-                        <div style={{ fontSize: '0.8rem', color: '#9ca3af', marginBottom: '0.75rem' }}>
-                          💬 {reservation.remarks}
+                        <div style={{ 
+                          fontSize: '0.85rem', 
+                          color: '#6b7280', 
+                          backgroundColor: '#f9fafb',
+                          padding: '0.5rem 0.75rem',
+                          borderRadius: '0.5rem',
+                          marginBottom: '0.75rem',
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word'
+                        }}>
+                          {reservation.remarks}
                         </div>
                       )}
                       
