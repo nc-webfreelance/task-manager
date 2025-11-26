@@ -59,9 +59,9 @@
     .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
     .view-mode-buttons { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
     .calendar { background: white; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
-    .calendar-content { min-width: 800px; display: flex; flex-direction: column; height: 100%; }
-    .calendar-fixed-header { flex-shrink: 0; background: white; position: sticky; top: 0; z-index: 10; }
-    .calendar-dates-scroll { flex: 1; overflow-y: auto; }
+    .calendar-nav-header { flex-shrink: 0; background: white; }
+    .calendar-scroll-area { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .calendar-content { min-width: 800px; display: flex; flex-direction: column; }
     .calendar-header { padding: 1rem; border-bottom: 1px solid #ffe4c4; display: flex; justify-content: space-between; align-items: center; }
     .calendar-nav { padding: 0.5rem; border: none; background: none; cursor: pointer; border-radius: 0.5rem; transition: background 0.2s; font-size: 1.5rem; color: #ed8936; }
     .calendar-nav:hover { background: #fffaf0; }
@@ -80,7 +80,6 @@
     .empty-state { text-align: center; padding: 3rem; color: #b8b0a8; }
     .required { color: #d97171; }
     .drop-indicator { height: 3px; background: #ed8936; margin: 0; transition: all 0.2s; box-shadow: 0 0 10px rgba(237, 137, 54, 0.6); border-radius: 2px; }
-    .date-label { display: none; }
     
     /* Responsive styles */
     @media (max-width: 768px) {
@@ -103,43 +102,36 @@
       .btn-group button { width: 100%; }
     }
     
+    /* モバイル用コンテンツは通常非表示 */
+    .task-mobile-content { display: none; }
+    
     @media (max-width: 900px) {
       .task-list-header { display: none !important; }
       
-      /* タスクの日付ラベルを表示 */
-      .date-label { display: inline; }
+      /* PC用要素を非表示 */
+      .task-pc-only { display: none !important; }
+      
+      /* モバイル用コンテンツを表示 */
+      .task-mobile-content { display: block !important; }
       
       .task-item { 
         display: flex !important;
-        flex-direction: column !important;
-        gap: 0.5rem !important;
-        padding: 0.75rem !important;
-        position: relative;
+        flex-direction: row !important;
+        gap: 0.75rem !important;
+        padding: 1rem !important;
+        align-items: flex-start !important;
       }
       
-      .task-item > input[type="checkbox"] {
-        position: absolute;
-        top: 0.75rem;
-        left: 0.75rem;
+      .task-item > .task-checkbox {
+        flex-shrink: 0;
+        width: 1.25rem;
+        height: 1.25rem;
+        margin-top: 0.25rem;
       }
       
-      .task-item > .task-priority-col,
-      .task-item > .task-date-col,
-      .task-item > .task-tag-col {
-        display: inline-block;
-        margin-right: 0.5rem;
-        margin-left: 2rem;
-        font-size: 0.85rem;
-      }
-      
-      .task-item > .task-content-col {
-        padding-left: 2rem;
-        width: 100%;
-      }
-      
-      .task-item > .task-actions-col {
-        width: 100%;
-        padding-left: 2rem;
+      .task-mobile-content {
+        flex: 1;
+        min-width: 0;
       }
       
       /* 予約：スマホではカード表示、PCではテーブル表示 */
@@ -156,19 +148,17 @@
       .calendar-nav { font-size: 1.25rem; padding: 0.25rem; }
       .calendar-title { font-size: 1rem; }
       
-      /* カレンダー横スクロール時に年月・曜日を固定 */
-      .calendar {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        max-height: calc(100vh - 200px);
-      }
-      
-      .calendar-fixed-header {
+      /* カレンダー横スクロール（年月は固定） */
+      .calendar-nav-header {
         position: sticky;
-        left: 0;
         top: 0;
         z-index: 10;
         background: white;
+      }
+      
+      .calendar-scroll-area {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
       }
       
       .modal { 
@@ -711,9 +701,10 @@
             transition: 'all 0.2s'
           }}
         >
+          {/* チェックボックス */}
           <input 
             type="checkbox" 
-            className="checkbox" 
+            className="checkbox task-checkbox" 
             checked={task.isCompleted} 
             onClick={(e) => e.stopPropagation()}
             onChange={(e) => { 
@@ -723,7 +714,8 @@
             style={{margin: 0, marginTop: '0.125rem'}}
           />
           
-          <div className="task-priority-col">
+          {/* PC用: 優先度 */}
+          <div className="task-priority-col task-pc-only">
             {task.priority && (
               <span className={`badge badge-${task.priority}`} style={{textAlign: 'center', padding: '0.25rem 0.5rem', fontSize: '0.75rem'}}>
                 {priorityLabels[task.priority]}
@@ -731,38 +723,42 @@
             )}
           </div>
           
-          <div className="task-date-col" style={{fontSize: '0.85rem', lineHeight: '1.4'}}>
+          {/* PC用: 作業日 */}
+          <div className="task-date-col task-pc-only" style={{fontSize: '0.85rem', lineHeight: '1.4'}}>
             {task.isWorkDateUndecided ? (
               <div>
-                <span className="date-label">🗓 作業: </span>未定
-                {task.workDateMemo && <span style={{fontSize: '0.75rem', color: '#9ca3af', marginLeft: '0.25rem'}}>({task.workDateMemo})</span>}
+                未定
+                {task.workDateMemo && <div style={{fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.2rem'}}>{task.workDateMemo}</div>}
               </div>
             ) : task.workDate ? (
               <div>
-                <span className="date-label">🗓 作業: </span>{formatDateWithWeekday(task.workDate)}
-                {task.workDateMemo && <span style={{fontSize: '0.75rem', color: '#9ca3af', marginLeft: '0.25rem'}}>({task.workDateMemo})</span>}
+                {formatDateWithWeekday(task.workDate)}
+                {task.workDateMemo && <div style={{fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.2rem'}}>{task.workDateMemo}</div>}
               </div>
             ) : task.workDateMemo ? (
-              <div><span className="date-label">🗓 作業: </span><span style={{fontSize: '0.75rem', color: '#9ca3af'}}>{task.workDateMemo}</span></div>
+              <div style={{fontSize: '0.75rem', color: '#9ca3af'}}>{task.workDateMemo}</div>
             ) : null}
           </div>
           
-          <div className="task-date-col" style={{fontSize: '0.85rem', lineHeight: '1.4', color: '#dc2626'}}>
+          {/* PC用: 締切日 */}
+          <div className="task-date-col task-pc-only" style={{fontSize: '0.85rem', lineHeight: '1.4', color: '#dc2626'}}>
             {task.dueDate ? (
               <div>
-                <span className="date-label">⏰ 締切: </span>{formatDateWithWeekday(task.dueDate)}
-                {task.dueDateMemo && <span style={{fontSize: '0.75rem', color: '#9ca3af', marginLeft: '0.25rem'}}>({task.dueDateMemo})</span>}
+                {formatDateWithWeekday(task.dueDate)}
+                {task.dueDateMemo && <div style={{fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.2rem'}}>{task.dueDateMemo}</div>}
               </div>
             ) : task.dueDateMemo ? (
-              <div><span className="date-label">⏰ 締切: </span><span style={{fontSize: '0.75rem', color: '#9ca3af'}}>{task.dueDateMemo}</span></div>
+              <div style={{fontSize: '0.75rem', color: '#9ca3af'}}>{task.dueDateMemo}</div>
             ) : null}
           </div>
           
-          <div className="task-tag-col" style={{whiteSpace: 'nowrap'}}>
+          {/* PC用: タグ */}
+          <div className="task-tag-col task-pc-only" style={{whiteSpace: 'nowrap'}}>
             {task.tag && <span className={`badge ${getTagClass(task.tag)}`} style={{fontSize: '0.75rem', padding: '0.25rem 0.5rem'}}>{task.tag}</span>}
           </div>
           
-          <div className="task-content-col" style={{minWidth: 0, marginLeft: '0.75rem'}}>
+          {/* PC用: タイトル・内容 */}
+          <div className="task-content-col task-pc-only" style={{minWidth: 0, marginLeft: '0.75rem'}}>
             {task.title && (
               <div className={task.isCompleted ? 'completed' : ''} style={{fontWeight: 600, fontSize: '0.875rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: '1.4', marginBottom: '0.2rem'}}>
                 {task.title}
@@ -775,9 +771,61 @@
             )}
           </div>
           
-          <div className="task-actions-col" style={{minWidth: 0}}>
+          {/* PC用: 備考 */}
+          <div className="task-actions-col task-pc-only" style={{minWidth: 0}}>
             {(task.remarks || task.memo) && (
               <div style={{fontSize: '0.8rem', color: '#9ca3af', whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: '1.4'}}>
+                {task.remarks || task.memo}
+              </div>
+            )}
+          </div>
+          
+          {/* モバイル用: モーダルと同じ順序で表示 */}
+          <div className="task-mobile-content">
+            {/* タイトル */}
+            {task.title && (
+              <div className={task.isCompleted ? 'completed' : ''} style={{fontWeight: 600, fontSize: '1rem', marginBottom: '0.25rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word'}}>
+                {task.title}
+              </div>
+            )}
+            {/* 内容 */}
+            {task.description && (
+              <div style={{fontSize: '0.9rem', color: '#6b7280', marginBottom: '0.5rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word'}}>
+                {task.description}
+              </div>
+            )}
+            {/* 日付 */}
+            <div style={{display: 'flex', flexDirection: 'column', gap: '0.2rem', fontSize: '0.85rem', marginBottom: '0.5rem'}}>
+              {(task.isWorkDateUndecided || task.workDate || task.workDateMemo) && (
+                <div style={{color: '#6b7280'}}>
+                  📅 作業: {task.isWorkDateUndecided ? '未定' : (task.workDate ? formatDateWithWeekday(task.workDate) : '')}
+                  {task.workDateMemo && <span style={{marginLeft: '0.25rem'}}>({task.workDateMemo})</span>}
+                </div>
+              )}
+              {(task.dueDate || task.dueDateMemo) && (
+                <div style={{color: '#dc2626'}}>
+                  ⏰ 締切: {task.dueDate ? formatDateWithWeekday(task.dueDate) : ''}
+                  {task.dueDateMemo && <span style={{marginLeft: '0.25rem'}}>({task.dueDateMemo})</span>}
+                </div>
+              )}
+            </div>
+            {/* タグ */}
+            {task.tag && (
+              <div style={{marginBottom: '0.5rem'}}>
+                <span className={`badge ${getTagClass(task.tag)}`} style={{fontSize: '0.75rem', padding: '0.25rem 0.5rem'}}>{task.tag}</span>
+              </div>
+            )}
+            {/* 備考 */}
+            {(task.remarks || task.memo) && (
+              <div style={{
+                fontSize: '0.85rem', 
+                color: '#6b7280', 
+                backgroundColor: '#f9fafb',
+                padding: '0.5rem 0.75rem',
+                borderRadius: '0.5rem',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word'
+              }}>
                 {task.remarks || task.memo}
               </div>
             )}
@@ -1177,12 +1225,12 @@
                           </p>
                         )}
                         
-                        <div style={{display: 'flex', flexWrap: 'wrap', gap: '0.75rem', fontSize: '0.9rem', color: '#6b7280', marginBottom: '0.75rem'}}>
-                          {(selectedTask.workDate || selectedTask.isWorkDateUndecided) && (
-                            <span>📅 作業: {selectedTask.isWorkDateUndecided ? '未定' : selectedTask.workDate}{selectedTask.workDateMemo ? ` (${selectedTask.workDateMemo})` : ''}</span>
+                        <div style={{display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.9rem', color: '#6b7280', marginBottom: '0.75rem'}}>
+                          {(selectedTask.workDate || selectedTask.isWorkDateUndecided || selectedTask.workDateMemo) && (
+                            <span>📅 作業: {selectedTask.isWorkDateUndecided ? '未定' : (selectedTask.workDate || '')}{selectedTask.workDateMemo ? ` (${selectedTask.workDateMemo})` : ''}</span>
                           )}
-                          {selectedTask.dueDate && (
-                            <span style={{color: '#dc2626'}}>⏰ 締切: {selectedTask.dueDate}{selectedTask.dueDateMemo ? ` (${selectedTask.dueDateMemo})` : ''}</span>
+                          {(selectedTask.dueDate || selectedTask.dueDateMemo) && (
+                            <span style={{color: '#dc2626'}}>⏰ 締切: {selectedTask.dueDate || ''}{selectedTask.dueDateMemo ? ` (${selectedTask.dueDateMemo})` : ''}</span>
                           )}
                         </div>
                         
@@ -1358,7 +1406,6 @@
           {/* タスク表示 */}
           <div style={{marginTop: '0.25rem', fontSize: '0.75rem', lineHeight: '1.3'}}>
             {tasksForDate.slice(0, 3).map(task => {
-              const dateMemo = viewMode === 'workDate' ? task.workDateMemo : task.dueDateMemo;
               // タイトルがない場合は内容またはタグを表示
               let displayTitle = task.title;
               if (!task.title || task.title.trim() === '') {
@@ -1389,9 +1436,14 @@
                       {task.description}
                     </div>
                   )}
-                  {dateMemo && (
+                  {task.workDateMemo && (
+                    <div style={{fontSize: '0.7rem', color: '#6b7280', marginTop: '0.1rem', marginLeft: displayTitle ? '0.5rem' : 0}}>
+                      🗓 {task.workDateMemo}
+                    </div>
+                  )}
+                  {task.dueDateMemo && (
                     <div style={{fontSize: '0.7rem', color: '#dc2626', marginTop: '0.1rem', marginLeft: displayTitle ? '0.5rem' : 0, fontWeight: 500}}>
-                      {dateMemo}
+                      ⏰ {task.dueDateMemo}
                     </div>
                   )}
                 </div>
@@ -1453,73 +1505,76 @@
 
       return (
         <div className="calendar">
-          <div className="calendar-content">
-            {/* 固定ヘッダー部分 */}
-            <div className="calendar-fixed-header">
-              <div className="calendar-header">
-                <button className="calendar-nav" onClick={() => setCurrentDate(new Date(year, month - 1, 1))}>←</button>
-                <h2 
-                  className="calendar-title" 
-                  onClick={() => setShowYearMonthPicker(!showYearMonthPicker)}
-                  style={{ cursor: 'pointer', userSelect: 'none' }}
-                  title="クリックして年月を選択"
+          {/* 年月ナビ（スクロール対象外） */}
+          <div className="calendar-nav-header">
+            <div className="calendar-header">
+              <button className="calendar-nav" onClick={() => setCurrentDate(new Date(year, month - 1, 1))}>←</button>
+              <h2 
+                className="calendar-title" 
+                onClick={() => setShowYearMonthPicker(!showYearMonthPicker)}
+                style={{ cursor: 'pointer', userSelect: 'none' }}
+                title="クリックして年月を選択"
+              >
+                {year}年 {month + 1}月 <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>▼</span>
+              </h2>
+              <button className="calendar-nav" onClick={() => setCurrentDate(new Date(year, month + 1, 1))}>→</button>
+            </div>
+            
+            {/* 年月ピッカー */}
+            {showYearMonthPicker && (
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                gap: '1rem',
+                padding: '1rem',
+                background: '#fff9f5',
+                borderRadius: '0.5rem',
+                marginBottom: '0'
+              }}>
+                <select
+                  value={year}
+                  onChange={(e) => {
+                    setCurrentDate(new Date(parseInt(e.target.value), month, 1));
+                  }}
+                  className="form-select"
+                  style={{ width: 'auto', padding: '0.5rem' }}
                 >
-                  {year}年 {month + 1}月 <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>▼</span>
-                </h2>
-                <button className="calendar-nav" onClick={() => setCurrentDate(new Date(year, month + 1, 1))}>→</button>
+                  {years.map(y => <option key={y} value={y}>{y}年</option>)}
+                </select>
+                <select
+                  value={month + 1}
+                  onChange={(e) => {
+                    setCurrentDate(new Date(year, parseInt(e.target.value) - 1, 1));
+                  }}
+                  className="form-select"
+                  style={{ width: 'auto', padding: '0.5rem' }}
+                >
+                  {months.map(m => <option key={m} value={m}>{m}月</option>)}
+                </select>
+                <button
+                  className="btn-secondary"
+                  onClick={() => {
+                    setCurrentDate(new Date());
+                    setShowYearMonthPicker(false);
+                  }}
+                  style={{ padding: '0.5rem 1rem' }}
+                >
+                  今月
+                </button>
+                <button
+                  className="btn-secondary"
+                  onClick={() => setShowYearMonthPicker(false)}
+                  style={{ padding: '0.5rem 1rem' }}
+                >
+                  閉じる
+                </button>
               </div>
-              
-              {/* 年月ピッカー */}
-              {showYearMonthPicker && (
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  gap: '1rem',
-                  padding: '1rem',
-                  background: '#fff9f5',
-                  borderRadius: '0.5rem',
-                  marginBottom: '1rem'
-                }}>
-                  <select
-                    value={year}
-                    onChange={(e) => {
-                      setCurrentDate(new Date(parseInt(e.target.value), month, 1));
-                    }}
-                    className="form-select"
-                    style={{ width: 'auto', padding: '0.5rem' }}
-                  >
-                    {years.map(y => <option key={y} value={y}>{y}年</option>)}
-                  </select>
-                  <select
-                    value={month + 1}
-                    onChange={(e) => {
-                      setCurrentDate(new Date(year, parseInt(e.target.value) - 1, 1));
-                    }}
-                    className="form-select"
-                    style={{ width: 'auto', padding: '0.5rem' }}
-                  >
-                    {months.map(m => <option key={m} value={m}>{m}月</option>)}
-                  </select>
-                  <button
-                    className="btn-secondary"
-                    onClick={() => {
-                      setCurrentDate(new Date());
-                      setShowYearMonthPicker(false);
-                    }}
-                    style={{ padding: '0.5rem 1rem' }}
-                  >
-                    今月
-                  </button>
-                  <button
-                    className="btn-secondary"
-                    onClick={() => setShowYearMonthPicker(false)}
-                    style={{ padding: '0.5rem 1rem' }}
-                  >
-                    閉じる
-                  </button>
-                </div>
-              )}
-              
+            )}
+          </div>
+          
+          {/* 横スクロール領域（曜日と日付） */}
+          <div className="calendar-scroll-area">
+            <div className="calendar-content">
               {/* 曜日ヘッダー */}
               <div className="calendar-grid calendar-weekday-header">
                 {['月', '火', '水', '木', '金', '土', '日'].map((day, index) => (
@@ -1534,10 +1589,8 @@
                   </div>
                 ))}
               </div>
-            </div>
-            
-            {/* スクロール可能な日付部分 */}
-            <div className="calendar-dates-scroll">
+              
+              {/* 日付グリッド */}
               <div className="calendar-grid">
                 {calendarDays.map((date, index) => (
                   <CalendarCell
@@ -1705,18 +1758,18 @@
                                   {task.description}
                                 </div>
                               )}
-                              <div style={{display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '0.5rem', fontSize: '0.875rem', color: '#6b7280'}}>
+                              <div style={{display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '0.5rem', fontSize: '0.875rem', color: '#6b7280'}}>
                                 {task.isWorkDateUndecided ? (
                                   <span>📅 作業: 未定 {task.workDateMemo && `(${task.workDateMemo})`}</span>
                                 ) : task.workDate ? (
                                   <span>📅 作業: {task.workDate} {task.workDateMemo && `(${task.workDateMemo})`}</span>
                                 ) : task.workDateMemo ? (
-                                  <span>📅 {task.workDateMemo}</span>
+                                  <span>📅 作業: {task.workDateMemo}</span>
                                 ) : null}
                                 {task.dueDate ? (
-                                  <span>⏰ 締切: {task.dueDate} {task.dueDateMemo && `(${task.dueDateMemo})`}</span>
+                                  <span style={{color: '#dc2626'}}>⏰ 締切: {task.dueDate} {task.dueDateMemo && `(${task.dueDateMemo})`}</span>
                                 ) : task.dueDateMemo ? (
-                                  <span>⏰ {task.dueDateMemo}</span>
+                                  <span style={{color: '#dc2626'}}>⏰ 締切: {task.dueDateMemo}</span>
                                 ) : null}
                               </div>
                               {(task.remarks || task.memo) && (
