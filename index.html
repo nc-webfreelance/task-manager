@@ -137,6 +137,10 @@
       /* 予約：スマホではカード表示、PCではテーブル表示 */
       .mobile-reservations { display: block !important; }
       .desktop-reservations { display: none !important; }
+      
+      /* リンク：スマホではドラッグハンドル非表示、パディング調整 */
+      .link-drag-handle { display: none !important; }
+      .link-content-wrapper { padding-left: 0 !important; }
     }
     
     @media (max-width: 640px) {
@@ -745,10 +749,10 @@
             {task.dueDate ? (
               <div>
                 {formatDateWithWeekday(task.dueDate)}
-                {task.dueDateMemo && <div style={{fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.2rem'}}>{task.dueDateMemo}</div>}
+                {task.dueDateMemo && <div style={{fontSize: '0.75rem', color: '#dc2626', marginTop: '0.2rem'}}>{task.dueDateMemo}</div>}
               </div>
             ) : task.dueDateMemo ? (
-              <div style={{fontSize: '0.75rem', color: '#9ca3af'}}>{task.dueDateMemo}</div>
+              <div style={{fontSize: '0.75rem', color: '#dc2626'}}>{task.dueDateMemo}</div>
             ) : null}
           </div>
           
@@ -1880,7 +1884,7 @@
       });
 
       const statusOptions = ['予約予定', '予約済み', '実施済み', 'キャンセル'];
-      const boothOptions = ['テレフォンブースA', 'テレフォンブースB', 'テレフォンブースC', '4名用会議室', '10名用会議室', '入力'];
+      const boothOptions = ['', 'テレフォンブースA', 'テレフォンブースB', 'テレフォンブースC', '4名用会議室', '10名用会議室', '入力'];
       
       // 時間と分の選択肢を生成
       const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
@@ -2148,8 +2152,8 @@
                   </div>
                   
                   <div>
-                    <label className="form-label">ブース</label>
-                    {formData.booth === '入力' || (formData.booth && !boothOptions.slice(0, -1).includes(formData.booth)) ? (
+                    <label className="form-label">場所</label>
+                    {formData.booth === '入力' || (formData.booth && formData.booth !== '' && !boothOptions.includes(formData.booth)) ? (
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
                         <input 
                           type="text" 
@@ -2173,7 +2177,7 @@
                         value={formData.booth}
                         onChange={(e) => setFormData({...formData, booth: e.target.value})}
                       >
-                        {boothOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                        {boothOptions.map(opt => <option key={opt} value={opt}>{opt === '' ? '選択なし' : opt}</option>)}
                       </select>
                     )}
                   </div>
@@ -2411,7 +2415,7 @@
                       <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap', width: '100px' }}>状況</th>
                       <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap', width: '100px' }}>日付</th>
                       <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 600, minWidth: '180px' }}>実施内容</th>
-                      <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap' }}>ブース</th>
+                      <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap' }}>場所</th>
                       <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap', width: '110px' }}>予約時間</th>
                       <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap', width: '110px' }}>実施時間</th>
                       <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 600, minWidth: '120px' }}>備考</th>
@@ -2585,6 +2589,56 @@
         setDragOverLinkId(null);
       };
 
+      // 上に移動
+      const handleMoveUp = async (linkId) => {
+        const sortedLinks = [...activeLinks].sort((a, b) => {
+          const orderA = a.order !== undefined ? a.order : Infinity;
+          const orderB = b.order !== undefined ? b.order : Infinity;
+          return orderA - orderB;
+        });
+        const index = sortedLinks.findIndex(l => l.id === linkId);
+        if (index <= 0) return;
+
+        // swap
+        [sortedLinks[index - 1], sortedLinks[index]] = [sortedLinks[index], sortedLinks[index - 1]];
+
+        const updatedActiveLinks = sortedLinks.map((link, i) => ({ ...link, order: i }));
+        const deletedLinks = links.filter(link => link.isDeleted);
+        const updatedLinks = [...updatedActiveLinks, ...deletedLinks];
+
+        setLinks(updatedLinks);
+        localStorage.setItem('frequentLinks', JSON.stringify(updatedLinks));
+
+        for (const link of updatedActiveLinks) {
+          await api.post('update', 'links', link);
+        }
+      };
+
+      // 下に移動
+      const handleMoveDown = async (linkId) => {
+        const sortedLinks = [...activeLinks].sort((a, b) => {
+          const orderA = a.order !== undefined ? a.order : Infinity;
+          const orderB = b.order !== undefined ? b.order : Infinity;
+          return orderA - orderB;
+        });
+        const index = sortedLinks.findIndex(l => l.id === linkId);
+        if (index < 0 || index >= sortedLinks.length - 1) return;
+
+        // swap
+        [sortedLinks[index], sortedLinks[index + 1]] = [sortedLinks[index + 1], sortedLinks[index]];
+
+        const updatedActiveLinks = sortedLinks.map((link, i) => ({ ...link, order: i }));
+        const deletedLinks = links.filter(link => link.isDeleted);
+        const updatedLinks = [...updatedActiveLinks, ...deletedLinks];
+
+        setLinks(updatedLinks);
+        localStorage.setItem('frequentLinks', JSON.stringify(updatedLinks));
+
+        for (const link of updatedActiveLinks) {
+          await api.post('update', 'links', link);
+        }
+      };
+
       // orderでソート
       const sortedActiveLinks = [...activeLinks].sort((a, b) => {
         const orderA = a.order !== undefined ? a.order : Infinity;
@@ -2741,8 +2795,9 @@
                       position: 'relative'
                     }}
                   >
-                    {/* ドラッグハンドル */}
+                    {/* ドラッグハンドル（PC用） */}
                     <div 
+                      className="link-drag-handle"
                       draggable
                       onDragStart={(e) => handleDragStart(e, link.id)}
                       onDragEnd={handleDragEnd}
@@ -2759,7 +2814,7 @@
                     >
                       ⋮⋮
                     </div>
-                    <div style={{ flex: 1, paddingLeft: '1.25rem' }}>
+                    <div className="link-content-wrapper" style={{ flex: 1, paddingLeft: '1.25rem' }}>
                       <div style={{ fontWeight: 600, fontSize: '1rem', marginBottom: '0.25rem', color: '#4a4a4a' }}>
                         {link.name}
                       </div>
@@ -2785,7 +2840,7 @@
                         </div>
                       )}
                     </div>
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                    <div className="link-content-wrapper" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
                       <button
                         className="btn-secondary"
                         onClick={(e) => { e.stopPropagation(); handleEditLink(link); }}
@@ -2823,6 +2878,15 @@
       const deletedReservations = reservations.filter(r => r.isDeleted);
       const totalDeleted = deletedTasks.length + deletedLinks.length + deletedReservations.length;
       
+      // 日付をフォーマット（例: 11/28 (金)）
+      const formatDateWithWeekday = (dateString) => {
+        if (!dateString) return '';
+        const [y, m, d] = dateString.split('-');
+        const date = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+        const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+        return `${parseInt(m)}/${parseInt(d)} (${weekdays[date.getDay()]})`;
+      };
+      
       return (
         <div>
           <div style={{marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
@@ -2850,8 +2914,8 @@
                           </div>
                         )}
                         <div style={{display: 'flex', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.875rem', color: '#6b7280'}}>
-                          {task.workDate && <span>📅 {task.workDate}</span>}
-                          {task.dueDate && <span>⏰ {task.dueDate}</span>}
+                          {task.workDate && <span>📅 {formatDateWithWeekday(task.workDate)}</span>}
+                          {task.dueDate && <span style={{color: '#dc2626'}}>⏰ {formatDateWithWeekday(task.dueDate)}</span>}
                           {task.tag && <span>🏷️ {task.tag}</span>}
                         </div>
                       </div>
@@ -2886,7 +2950,7 @@
                       <div style={{flex: 1}}>
                         <h3 style={{fontWeight: 500, marginBottom: '0.5rem', color: '#991b1b'}}>{reservation.content || '(内容なし)'}</h3>
                         <div style={{fontSize: '0.875rem', color: '#6b7280'}}>
-                          📅 {reservation.date} | {reservation.reservationTime} | {reservation.booth}
+                          📅 {formatDateWithWeekday(reservation.date)} | {reservation.reservationTime} | {reservation.booth}
                         </div>
                       </div>
                       <div style={{display: 'flex', gap: '0.5rem', flexShrink: 0}}>
